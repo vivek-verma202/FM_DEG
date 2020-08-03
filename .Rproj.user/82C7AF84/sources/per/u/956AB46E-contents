@@ -1,0 +1,24 @@
+load.lib<-c("AnnotationHub",
+            "BiocParallel",
+            "ensembldb",
+            "DESeq2",
+            "tidyverse",
+            "RColorBrewer",
+            "pheatmap",
+            "DEGreport",
+            "tximport",
+            "ggplot2",
+            "ggrepel",
+            "readxl"
+)
+sapply(load.lib,require,character=T)
+theme_set(theme_bw())
+register(SnowParam(3))
+
+
+ggplot(meta, aes(age)) +
+  geom_density(lwd = 2)
+
+age2 <- data.frame(scale(meta$age))
+ggplot(age2, aes(scale.meta.age.)) +
+  geom_density(lwd = 2)
