@@ -27,26 +27,65 @@ mv /project/6007297/vivek22/FM_RNA/FASTQ/A00266_0043_1_i* /project/6007297/vivek
 cd ..
 mkdir salmon
 cd salmon
-# Download the reference transcriptome from the FTP server
-wget ftp://ftp.ensembl.org/pub/release-100/fasta/homo_sapiens/cdna/Homo_sapiens.GRCh38.cdna.all.fa.gz
-gzip -d Homo_sapiens.GRCh38.cdna.all.fa.gz
+# Download the reference transcriptome from the Gencode's FTP server
+wget ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_34/gencode.v34.transcripts.fa.gz
+wget ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_34/GRCh38.primary_assembly.genome.fa.gz
+# prepare metadata (https://combine-lab.github.io/alevin-tutorial/2019/selective-alignment/):
+grep "^>" <(gunzip -c GRCh38.primary_assembly.genome.fa.gz) | cut -d " " -f 1 > decoys.txt
+sed -i.bak -e 's/>//g' decoys.txt
+cat gencode.v34.transcripts.fa.gz GRCh38.primary_assembly.genome.fa.gz > gentrome.fa.gz
 # make index file
-cat -> salmon_index.sh << EOF
+salloc --time=2:59:0 --ntasks=40 --mem-per-cpu=2G --account=def-ldiatc
+module load nixpkgs/16.09  gcc/7.3.0  openmpi/3.1.4  salmon/1.3.0
+salmon index -t gentrome.fa.gz -d decoys.txt -p 40 -i salmon_index --gencode
+
+################# test one (pwd = salmon) #############################
+module load nixpkgs/16.09  gcc/7.3.0  openmpi/3.1.4  salmon/1.3.0
+salmon quant -i salmon_index                           \
+ -l A                                                  \
+ -r /project/6007297/vivek22/FM_RNA/FASTQ/E05.Fastq.gz \
+ -p 40                                                 \
+ -o test                                               \
+ --seqBias                                             \
+ --gcBias                                              \
+ --posBias                                             \
+ --numBootstraps 30
+ 
+################# script for all (pwd = salmon) #############################
+for fq in /project/6007297/vivek22/FM_RNA/FASTQ/*.Fastq.gz; do
+cat -> salmon_quant_${fq} << EOF
 #!/bin/bash
 #SBATCH --account=def-ldiatc
 #SBATCH --mail-user=vivek.verma@mail.mcgill.ca
 #SBATCH --mail-type=ALL
-#SBATCH --cpus-per-task=10
-#SBATCH --mem-per-cpu=500M
-#SBATCH --time=02:59:00
-module load nixpkgs/16.09  gcc/7.3.0  openmpi/3.1.4  salmon/1.1.0
-salmon index \
--t ./Homo_sapiens.GRCh38.cdna.all.fa \
--p 10 \
--i salmon_index \
--k 31
+#SBATCH --cpus-per-task=40
+#SBATCH --mem-per-cpu=2G
+#SBATCH --time=00:59:00
+module load nixpkgs/16.09  gcc/7.3.0  openmpi/3.1.4  salmon/1.3.0
+salmon quant -i gencode.v34_salmon_1.3.0 \
+ -l A                                    \
+ -r ${fq}                                \
+ -p 40                                   \
+ -o ${fq}.salmon                         \
+ --seqBias                               \
+ --gcBias                                \
+ --posBias                               \
+ --numBootstraps 30
 EOF
-sbatch salmon_index.sh
+
+########## check scripts ##########
+lt 
+cat salmon_quant_...
+
+########## submit scripts ##########
+for fq in /project/6007297/vivek22/FM_RNA/FASTQ/*.Fastq.gz; do
+sbatch salmon_quant_${fq}
+done
+
+
+
+
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>old_below
 salloc --time=6:59:0 --ntasks=40 --mem-per-cpu=1G --account=def-ldiatc
 module load nixpkgs/16.09  gcc/7.3.0  openmpi/3.1.4  salmon/1.1.0
 for fq in /project/6007297/vivek22/FM_RNA/FASTQ/*.Fastq.gz
