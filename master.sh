@@ -23,7 +23,6 @@ multiqc .
 mv /project/6007297/vivek22/FM_RNA/FASTQ/fastqc/ /project/6007297/vivek22/FM_RNA/
 mkdir /project/6007297/vivek22/FM_RNA/FASTQ/z
 mv /project/6007297/vivek22/FM_RNA/FASTQ/A00266_0043_1_i* /project/6007297/vivek22/FM_RNA/FASTQ/z
-
 cd ..
 mkdir salmon
 cd salmon
@@ -47,22 +46,10 @@ module load nixpkgs/16.09  gcc/7.3.0  openmpi/3.1.4  salmon/1.3.0
 salmon index -t gentrome.fa.gz -d decoys.txt -p 40 -i salmon_index --gencode
 EOF
 sbatch salmon_index.sh
-
-################# test one (pwd = salmon) #############################
-module load nixpkgs/16.09  gcc/7.3.0  openmpi/3.1.4  salmon/1.3.0
-salmon quant -i salmon_index                           \
- -l A                                                  \
- -r /project/6007297/vivek22/FM_RNA/FASTQ/E05.Fastq.gz \
- -p 40                                                 \
- -o test                                               \
- --seqBias                                             \
- --gcBias                                              \
- --posBias                                             \
- --numBootstraps 30
- 
-################# script for all (pwd = salmon) #############################
+################# Salmon quant script for all FASTQs (pwd = salmon) #################
 for fq in /project/6007297/vivek22/FM_RNA/FASTQ/*.Fastq.gz; do
-cat -> salmon_quant_${fq} << EOF
+base=`basename $fq .fq`
+cat -> ${base}.sh << EOF
 #!/bin/bash
 #SBATCH --account=def-ldiatc
 #SBATCH --mail-user=vivek.verma@mail.mcgill.ca
@@ -70,70 +57,20 @@ cat -> salmon_quant_${fq} << EOF
 #SBATCH --cpus-per-task=40
 #SBATCH --mem-per-cpu=2G
 #SBATCH --time=00:59:00
+# run salmon
 module load nixpkgs/16.09  gcc/7.3.0  openmpi/3.1.4  salmon/1.3.0
-salmon quant -i gencode.v34_salmon_1.3.0 \
+salmon quant -i salmon_index             \
  -l A                                    \
  -r ${fq}                                \
  -p 40                                   \
- -o ${fq}.salmon                         \
+ -o ${base}.salmon                       \
  --seqBias                               \
  --gcBias                                \
  --posBias                               \
  --numBootstraps 30
 EOF
-
-########## check scripts ##########
-lt 
-cat salmon_quant_...
-
-########## submit scripts ##########
-for fq in /project/6007297/vivek22/FM_RNA/FASTQ/*.Fastq.gz; do
-sbatch salmon_quant_${fq}
 done
-
-
-
-
->>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>old_below
-salloc --time=6:59:0 --ntasks=40 --mem-per-cpu=1G --account=def-ldiatc
-module load nixpkgs/16.09  gcc/7.3.0  openmpi/3.1.4  salmon/1.1.0
-for fq in /project/6007297/vivek22/FM_RNA/FASTQ/*.Fastq.gz
-do
-# create a prefix
-base=`basename $fq .fq`
-# run salmon
-salmon quant -i salmon_index \
- -l A \
- -r $fq \
- -p 40 \
- -o $base.salmon \
- --seqBias \
- --useVBOpt \
- --numBootstraps 30 \
- --gcBias \
- --validateMappings
-
+for sh in *Fastq.gz.sh ; do
+sbatch ${sh}
 done
-EOF
-sbatch salmon_quant.sh
-# check if files remaining (from FASTQ dir): 
-diff  <(ls -1 /project/6007297/vivek22/FM_RNA/FASTQ/ | sed s/.Fastq.gz//g) <( ls -1 ./ | sed s/.Fastq.gz.salmon//g) 
-
-salloc --time=2:59:0 --ntasks=10 --mem-per-cpu=500M --account=def-ldiatc
-module load nixpkgs/16.09  gcc/7.3.0  openmpi/3.1.4  salmon/1.1.0
-for fq in /project/6007297/vivek22/FM_RNA/FASTQ/rem/*.Fastq.gz
-do
-# create a prefix
-base=`basename $fq .fq`
-# run salmon
-salmon quant -i salmon_index \
- -l A \
- -r $fq \
- -p 10 \
- -o $base.salmon \
- --seqBias \
- --useVBOpt \
- --numBootstraps 30 \
- --gcBias \
- --validateMappings
-done
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
