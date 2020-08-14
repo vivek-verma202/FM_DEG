@@ -35,9 +35,18 @@ grep "^>" <(gunzip -c GRCh38.primary_assembly.genome.fa.gz) | cut -d " " -f 1 > 
 sed -i.bak -e 's/>//g' decoys.txt
 cat gencode.v34.transcripts.fa.gz GRCh38.primary_assembly.genome.fa.gz > gentrome.fa.gz
 # make index file
-salloc --time=2:59:0 --ntasks=40 --mem-per-cpu=2G --account=def-ldiatc
+cat -> salmon_index.sh << EOF
+#!/bin/bash
+#SBATCH --account=def-ldiatc
+#SBATCH --mail-user=vivek.verma@mail.mcgill.ca
+#SBATCH --mail-type=ALL
+#SBATCH --cpus-per-task=40
+#SBATCH --mem-per-cpu=2G
+#SBATCH --time=10:59:00
 module load nixpkgs/16.09  gcc/7.3.0  openmpi/3.1.4  salmon/1.3.0
 salmon index -t gentrome.fa.gz -d decoys.txt -p 40 -i salmon_index --gencode
+EOF
+sbatch salmon_index.sh
 
 ################# test one (pwd = salmon) #############################
 module load nixpkgs/16.09  gcc/7.3.0  openmpi/3.1.4  salmon/1.3.0
